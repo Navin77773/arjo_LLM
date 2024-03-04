@@ -1,0 +1,45 @@
+import os
+import markdown
+from datetime import datetime
+from langchain_core.documents import Document
+from langchain.vectorstores import Chroma
+
+def extract_heading_and_content(file_path):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        content = file.read()
+        html_content = markdown.markdown(content)
+        heading = html_content.split('<h1>', 1)[-1].split('</h1>', 1)[0]
+        return heading.strip(), content.strip()
+
+def process_folder(folder_path):
+    existing_dict = {}
+    try:
+        for file_name in os.listdir(folder_path):
+            if file_name.endswith('.md'):
+                file_path = os.path.join(folder_path, file_name)
+                heading, content = extract_heading_and_content(file_path)
+                existing_dict[heading] = content
+    except FileNotFoundError:
+        print(f"Folder not found at location: {folder_path}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    return existing_dict
+
+def store_dict_in_chroma(dictionary, chroma_directory):
+    # Ensure the directory exists and has the correct permissions
+    os.makedirs(chroma_directory, exist_ok=True)
+    
+    db = Chroma(persist_directory=chroma_directory)
+    documents = [Document(page_content=content) for content in dictionary.values()]
+    db.add_documents(documents=documents)
+
+# Example usage
+folder_location = "/home/navin/arjo_llm/Arjo Ai"
+chroma_directory = "/home/navin/chroma_db" # Adjust this to a directory you have write access to
+
+result_dict = process_folder(folder_location)
+
+# Store the dictionary in Chroma
+store_dict_in_chroma(result_dict, chroma_directory)
+
+print("Data stored in Chroma database.")
